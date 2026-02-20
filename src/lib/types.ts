@@ -14,7 +14,7 @@ export interface ConnectionProfile {
   group?: string;
 }
 
-export type SessionStatus = "connecting" | "connected" | "disconnected" | "error";
+export type SessionStatus = "connecting" | "connected" | "disconnected" | "reconnecting" | "error";
 
 export interface Session {
   id: string;
