@@ -46,9 +46,9 @@ export function QuickConnect({ onConnect }: Props) {
         onChange={e => setValue(e.target.value)}
         onKeyDown={e => e.key === "Enter" && handleSubmit()}
         placeholder="Quick connect: user@host:port"
-        style={{ flex: 1, background: "var(--bg-tertiary)", fontSize: 12, padding: "5px 10px", border: "1px solid var(--border)", borderRadius: 4 }}
+        style={{ flex: 1, background: "var(--bg-primary)", fontSize: 12, padding: "6px 12px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text)", fontFamily: "var(--font-mono)", outline: "none" }}
       />
-      <button className="btn-primary" onClick={handleSubmit} style={{ padding: "5px 12px", fontSize: 12 }}>
+      <button onClick={handleSubmit} style={{ padding: "6px 14px", fontSize: 12, background: "var(--primary)", border: "1px solid var(--primary)", borderRadius: "var(--radius-sm)", color: "var(--primary-text)", fontWeight: 500, cursor: "pointer" }}>
         Connect
       </button>
     </div>
