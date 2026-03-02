@@ -20,12 +20,37 @@ impl Handler for ClientHandler {
         Ok(true)
     }
 
+    async fn channel_open_confirmation(
+        &mut self,
+        _channel: russh::ChannelId,
+        _max_packet_size: u32,
+        _window_size: u32,
+        _session: &mut client::Session,
+    ) -> Result<(), Self::Error> {
+        log::debug!("Channel open confirmed");
+        Ok(())
+    }
+
     async fn data(
         &mut self,
         _channel: russh::ChannelId,
         data: &[u8],
         _session: &mut client::Session,
     ) -> Result<(), Self::Error> {
+        log::debug!("SSH data received: {} bytes", data.len());
+        let _ = self.data_tx.send(data.to_vec());
+        Ok(())
+    }
+
+    async fn extended_data(
+        &mut self,
+        _channel: russh::ChannelId,
+        _ext: u32,
+        data: &[u8],
+        _session: &mut client::Session,
+    ) -> Result<(), Self::Error> {
+        log::debug!("SSH extended data received: {} bytes", data.len());
+        // Send stderr data as well
         let _ = self.data_tx.send(data.to_vec());
         Ok(())
     }
@@ -66,13 +91,15 @@ impl SshConnection {
         cols: u32,
         rows: u32,
     ) -> Result<(), String> {
+        // Request PTY and wait for confirmation
         channel
-            .request_pty(false, "xterm-256color", cols, rows, 0, 0, &[])
+            .request_pty(true, "xterm-256color", cols, rows, 0, 0, &[])
             .await
             .map_err(|e| format!("PTY request failed: {}", e))?;
 
+        // Request shell and wait for confirmation  
         channel
-            .request_shell(false)
+            .request_shell(true)
             .await
             .map_err(|e| format!("Shell request failed: {}", e))?;
 

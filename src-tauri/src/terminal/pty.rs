@@ -28,8 +28,10 @@ pub fn spawn_data_reader(
 ) {
     let sid = session_id.clone();
     tokio::spawn(async move {
+        log::info!("Starting data reader for session {}", sid);
         let mut rx = data_rx.lock().await;
         while let Some(data) = rx.recv().await {
+            log::debug!("Emitting terminal output: {} bytes", data.len());
             let _ = app.emit(
                 "terminal-output",
                 TerminalOutputEvent {
@@ -39,6 +41,7 @@ pub fn spawn_data_reader(
             );
         }
         // Channel closed — session disconnected
+        log::info!("Data reader for session {} closed", sid);
         let _ = app.emit(
             "session-status",
             SessionStatusEvent {

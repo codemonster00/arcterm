@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
+use tokio::sync::Mutex;
 
 use crate::config::profiles::{ConnectionProfile, ProfileStore};
 use crate::ssh::auth::AuthCredential;
@@ -34,8 +35,10 @@ pub async fn connect(
     );
 
     // Establish SSH connection
+    log::info!("Connecting to {}:{}", profile.host, profile.port);
     let (mut handle, data_rx) =
         SshConnection::establish(&profile.host, profile.port, 10).await?;
+    log::info!("Connection established");
 
     // Authenticate
     let credential = if profile.auth_method == "key" {
@@ -47,23 +50,32 @@ pub async fn connect(
         AuthCredential::Password(profile.password.unwrap_or_default())
     };
 
+    log::info!("Authenticating user: {}", profile.username);
     let auth_ok = credential.authenticate(&mut handle, &profile.username).await?;
     if !auth_ok {
         return Err("Authentication failed".to_string());
     }
+    log::info!("Authentication successful");
 
     // Open channel and request PTY
+    log::info!("Opening channel");
     let mut channel = handle
         .channel_open_session()
         .await
         .map_err(|e| format!("Failed to open channel: {}", e))?;
+    log::info!("Channel opened");
 
+    log::info!("Requesting PTY");
     SshConnection::request_pty(&mut channel, 80, 24).await?;
+    log::info!("PTY established");
 
-    // Store session
+    // Store session and spawn data reader
     let sm: &SessionManager = &session_mgr;
     let sessions_arc = sm.sessions.clone();
-
+    
+    // Create the data_rx Arc before adding session
+    let data_rx = Arc::new(Mutex::new(data_rx));
+    
     sm.add_session(
         session_id.clone(),
         profile.name.clone(),
@@ -71,20 +83,15 @@ pub async fn connect(
         profile.username.clone(),
         handle,
         channel,
-        data_rx,
+        data_rx.clone(),
     )
     .await;
 
-    // Get the data_rx from the stored session and spawn reader
-    let sessions = sessions_arc.lock().await;
-    if let Some(session) = sessions.get(&session_id) {
-        let data_rx = session.data_rx.clone();
-        let sm_arc = Arc::new(SessionManager {
-            sessions: sessions_arc.clone(),
-        });
-        drop(sessions);
-        pty::spawn_data_reader(app.clone(), session_id.clone(), data_rx, sm_arc);
-    }
+    // Spawn data reader with the data_rx we already have
+    let sm_arc = Arc::new(SessionManager {
+        sessions: sessions_arc.clone(),
+    });
+    pty::spawn_data_reader(app.clone(), session_id.clone(), data_rx, sm_arc);
 
     // Emit connected status
     let _ = app.emit(

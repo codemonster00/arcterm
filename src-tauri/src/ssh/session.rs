@@ -50,7 +50,7 @@ impl SessionManager {
         username: String,
         handle: Handle<ClientHandler>,
         channel: Channel<Msg>,
-        data_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+        data_rx: Arc<Mutex<mpsc::UnboundedReceiver<Vec<u8>>>>,
     ) {
         let session = ActiveSession {
             info: SessionInfo {
@@ -68,7 +68,7 @@ impl SessionManager {
             },
             handle,
             channel,
-            data_rx: Arc::new(Mutex::new(data_rx)),
+            data_rx,
         };
         self.sessions.lock().await.insert(id, session);
     }
